@@ -1,4 +1,9 @@
 import xml.etree.ElementTree as ET
+import re
+from reportlab.lib.units import mm
+from reportlab.pdfgen.canvas import Canvas
+from reportlab_qrcode import QRCodeImage
+import qrcode
 
 
 class User:
@@ -152,15 +157,34 @@ def readFile(users, groups, memberships):
 def createKeyCloakCSV(nameOfOutputCsv: str):
     with open(nameOfOutputCsv, "w", encoding="utf-8") as f:
         f.write(
-            "id; nachname; vorname; benutzername; geburtstag, ncQuota; initialpasswort, gruppen\n")
+            "id; nachname; vorname; benutzername; geburtstag; ncQuota; initialpasswort; gruppen\n")
         for user in users:
             courses = returnCoursesOfStudent(user.lehrerid)
             f.write(
-                f'{returnUsername(user.lehrerid) if "X" in user.lehrerid else user.lehrerid[10:]};{user.name}; {user.given};{returnUsername(user.lehrerid)}; {user.birthday}, {20000 if "X" in user.lehrerid else 1000}; {f"{user.lehrerid[-3:]}{returnUsername(user.lehrerid)[-2:]}{stripHyphensFromBirthday(user.birthday)[-3:]}{returnUsername(user.lehrerid)[:2]}"}; {"##".join(courses)}\n')
+                f'{returnUsername(user.lehrerid) if "X" in user.lehrerid else user.lehrerid[10:]};{user.name}; {user.given};{returnUsername(user.lehrerid)}; {user.birthday}; {20000 if "X" in user.lehrerid else 1000}; {f"{user.lehrerid[-3:]}{returnUsername(user.lehrerid)[-2:]}{stripHyphensFromBirthday(user.birthday)[-3:]}{returnUsername(user.lehrerid)[:2]}"}; {"##".join(courses)}\n')
 
 
 def stripHyphensFromBirthday(birthday: str):
     return birthday.replace("-", "")
+
+
+def returnUsersOfCourse(groupid):
+    users = []
+    for user in [
+            membership.nameid for membership in memberships
+            if membership.groupid == groupid]:
+        users.append(returnUserGivenAndName(user))
+    return users
+
+
+def returnUserGivenAndName(studentid):
+    last = [user.name for user in users if user.lehrerid == studentid][0]
+    given = [user.given for user in users if user.lehrerid == studentid][0]
+    return {"id": studentid, "given": given, "last": last, "username": returnUsername(studentid)}
+
+
+def returnGroupId(groupname: str):
+    return [group.groupid for group in groups if group.name == groupname][0]
 
 
 if __name__ == "__main__":
@@ -171,4 +195,31 @@ if __name__ == "__main__":
     root = tree.getroot()
     readFile(users, groups, memberships)
 
+    for group in groups:
+        if "Klasse" in group.name:
+            group.name = group.name[7:].replace(" ", "")
+        if "(" in group.name:
+            start = group.name.rfind("(")
+            ende = group.name.rfind(")")
+            m = re.search(r"\d", group.name)
+            digitfound = m.group(0)
+            templist = group.name[start+1:ende].replace(" ", "").split(",")
+            group.name = f"2122-{templist[0]}{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}-{templist[2]}-{templist[3]}"
+        if "Alle - Schueler" in group.name:
+            group.name = "Alle-Schueler"
+
     createKeyCloakCSV("testexport.csv")
+
+    # doc = Canvas('advanced.pdf')
+    # qr = QRCodeImage(
+    #     size=25 * mm,
+    #     fill_color='blue',
+    #     back_color='white',
+    #     border=4,
+    #     version=2,
+    #     error_correction=qrcode.constants.ERROR_CORRECT_H,
+    # )
+    # qr.add_data('url')
+    # qr.drawOn(doc, 30 * mm, 50 * mm)
+    # doc.showPage()
+    # doc.save()

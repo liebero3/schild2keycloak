@@ -7,13 +7,14 @@ import qrcode
 
 
 class User:
-    def __init__(self, lehrerid, name, given, institutionrole, email, birthday):
+    def __init__(self, lehrerid, name, given, institutionrole, email, birthday, username):
         self.lehrerid = lehrerid
         self.name = name
         self.given = given
         self.institutionrole = institutionrole
         self.email = email
         self.birthday = birthday
+        self.username = username
 
     def __repr__(self):  # optional
         return f'User {self.name}'
@@ -59,13 +60,20 @@ def readUsers(users):
         for child in elem.findall(
                 ".//{http://www.metaventis.com/ns/cockpit/sync/1.0}email"):
             email = child.text
-        for child in elem.findall(
-                ".//{http://www.metaventis.com/ns/cockpit/sync/1.0}bday"):
-            birthday = child.text
+        if institutionrole == "Student":
+            for child in elem.findall(
+                    ".//{http://www.metaventis.com/ns/cockpit/sync/1.0}bday"):
+                birthdaytemp = child.text.split("-")
+                birthday = f"{birthdaytemp[2]}.{birthdaytemp[1]}.{birthdaytemp[0]}"
+            tempusername = returnUsername(given, name, "kurzform")
+            # print(given, name)
+        if institutionrole == "faculty":
+            tempusername = returnUsername(given, name, "vorname.nachname")
+            birthday = ""
         users.append(
             User(
                 lehrerid, name, given, institutionrole, email,
-                birthday))
+                birthday, tempusername))
 
 
 def readGroups(groups):
@@ -106,10 +114,13 @@ def returnCoursesOfStudent(studentid):
     return courseslist
 
 
-def returnUsername(studentid):
-    last = [user.name for user in users if user.lehrerid == studentid][0]
-    given = [user.given for user in users if user.lehrerid == studentid][0]
-    username = given.split(" ")[0] + "." + last
+def returnUsername(given, last, typ):
+    if typ == "vorname.nachname":
+        username = given.split(" ")[0] + "." + \
+            last.replace(" ", "").replace("-", "")
+    if typ == "kurzform":
+        username = given.split(" ")[0][:4] + \
+            last.replace(" ", "").replace("-", "")[:4]
     return username.lower().replace(
         "ü", "ue").replace(
         "ä", "ae").replace(
@@ -161,7 +172,7 @@ def createKeyCloakCSV(nameOfOutputCsv: str):
         for user in users:
             courses = returnCoursesOfStudent(user.lehrerid)
             f.write(
-                f'{returnUsername(user.lehrerid) if "X" in user.lehrerid else user.lehrerid[10:]};{user.name}; {user.given};{returnUsername(user.lehrerid)}; {user.birthday}; {20000 if "X" in user.lehrerid else 1000}; {f"{user.lehrerid[-3:]}{returnUsername(user.lehrerid)[-2:]}{stripHyphensFromBirthday(user.birthday)[-3:]}{returnUsername(user.lehrerid)[:2]}"}; {"##".join(courses)}\n')
+                f'{user.username if "X" in user.lehrerid else user.lehrerid[10:]};{user.name}; {user.given};{user.username}; {user.birthday}; {20000 if "X" in user.lehrerid else 1000}; {f"{user.lehrerid[-3:]}{user.username[-2:]}{stripHyphensFromBirthday(user.birthday)[:3]}{user.username[:2]}"}; {"##".join(courses)}\n')
 
 
 def stripHyphensFromBirthday(birthday: str):
@@ -180,7 +191,7 @@ def returnUsersOfCourse(groupid):
 def returnUserGivenAndName(studentid):
     last = [user.name for user in users if user.lehrerid == studentid][0]
     given = [user.given for user in users if user.lehrerid == studentid][0]
-    return {"id": studentid, "given": given, "last": last, "username": returnUsername(studentid)}
+    return {"id": studentid, "given": given, "last": last, "username": user.username}
 
 
 def returnGroupId(groupname: str):
@@ -194,6 +205,15 @@ if __name__ == "__main__":
     tree = ET.parse("schild4.xml")
     root = tree.getroot()
     readFile(users, groups, memberships)
+
+    # for user in users:
+    #     print(user.username, user.given, user.name)
+
+    # for user in users:
+    #     username = user.username
+    #     for user in users:
+    #         if user.username == username:
+    #             user.username == user.username + "1"
 
     for group in groups:
         if "Klasse" in group.name:

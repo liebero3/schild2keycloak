@@ -457,14 +457,14 @@ def printUserCredentials(filename, importurl):
         for user in users:
             kurse = returnCoursesOfStudent(user.lehrerid)
             if klasse in kurse:
-                addTitle(document, 36, colors.blue, "Benutzername:")
-                addTitle(document, 20, colors.black,
-                         f"{user.given} {user.name}")
-                addTitle(document, 36, colors.blue, "Passwort:")
+                addTitle(document, 36, colors.blue,"Benutzername:")
+                addTitle(document, 20, colors.black,f"{user.username}")
+                # print(user.username)
+                addTitle(document, 36, colors.blue,"Passwort:")
                 addTitle(document, 20, colors.black, f"{user.initialpassword}")
-                addTitle(document, 36, colors.blue, "URL:")
-                addTitle(document, 20, colors.black, importurl)
-                addTitle(document, 36, colors.blue, "QR-Code:")
+                addTitle(document, 36, colors.blue,"URL:")
+                addTitle(document, 20, colors.black,importurl)
+                addTitle(document, 36, colors.blue,"QR-Code:")
                 document.append(Image("some_file.png", 8*cm, 8*cm))
         SimpleDocTemplate(
             f"./exports/{klasse}.pdf",
@@ -487,7 +487,7 @@ if __name__ == "__main__":
     renameGroups()
     # createKeyCloakCSV("Export20220301v6.csv")
     checkForDuplicates()
-    printUserCredentials("usernames.pdf", "some_url")
+    printUserCredentials("usernames.pdf", "some-url")
     # for user in users:
     #     print(user.username, user.given, user.name)
 

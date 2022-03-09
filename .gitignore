@@ -153,3 +153,4 @@ Pipfile.lock
 *.csv
 *.pdf
 *.png
+*.txt

@@ -1,18 +1,15 @@
-from ctypes import alignment
-from mmap import PAGESIZE
-from turtle import color
 import xml.etree.ElementTree as ET
 import re
+import mappings
+from turtle import color
+from mmap import PAGESIZE
+from ctypes import alignment
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-# from reportlab.pdfgen.canvas import Canvas
-import qrcode
 
 
 class User:
@@ -76,7 +73,6 @@ def readUsers(users):
                 birthdaytemp = child.text.split("-")
                 birthday = f"{birthdaytemp[2]}.{birthdaytemp[1]}.{birthdaytemp[0]}"
             tempusername = returnUsername(given, name, "kurzform")
-            # print(given, name)
         if institutionrole == "faculty" or institutionrole == "extern":
             tempusername = returnUsername(given, name, "vorname.nachname")
             birthday = ""
@@ -125,192 +121,26 @@ def returnCoursesOfStudent(studentid):
             if membership.nameid == studentid]:
         groupname = [group.name for group in groups
                      if group.groupid == course][0]
-        courseslist.append(groupname)
+        if groupname != "":
+            courseslist.append(groupname)
     return courseslist
 
 
 def returnUsername(given, last, typ):
     if typ == "vorname.nachname":
-        username = given.translate(mappingusername).split(" ")[0] + "." + \
-            last.translate(mappingusername).replace(" ", "").replace("-", "")
+        username = given.translate(mappings.mappingusername).split(" ")[0] + "." + \
+            last.translate(mappings.mappingusername).replace(
+                " ", "").replace("-", "")
     if typ == "kurzform":
-        username = given.translate(mappingusername).split(" ")[0][:4] + \
-            last.translate(mappingusername).replace(
+        username = given.translate(mappings.mappingusername).split(" ")[0][:4] + \
+            last.translate(mappings.mappingusername).replace(
                 " ", "").replace("-", "")[:4]
     return username.lower()
 
 
-mappinguntis = {
-    # ord(u"Ä"): u"Ae",
-    # ord(u"ä"): u"ae",
-    ord(u"Ë"): u"E",
-    ord(u"ë"): u"e",
-    ord(u"Ï"): u"I",
-    ord(u"ï"): u"i",
-    # ord(u"Ö"): u"Oe",
-    # ord(u"ö"): u"oe",
-    # ord(u"Ü"): u"Ue",
-    # ord(u"ü"): u"ue",
-    ord(u"Ÿ"): u"Y",
-    ord(u"ÿ"): u"y",
-    # ord(u"ß"): u"ss",
-    ord(u"À"): u"A",
-    ord(u"Á"): u"A",
-    ord(u"Â"): u"A",
-    ord(u"Ã"): u"A",
-    ord(u"Å"): u"A",
-    ord(u"Æ"): u"Ae",
-    ord(u"Ç"): u"C",
-    # ord(u"È"): u"E",
-    # ord(u"É"): u"E",
-    # ord(u"Ê"): u"E",
-    ord(u"Ì"): u"I",
-    ord(u"Í"): u"I",
-    ord(u"Î"): u"I",
-    ord(u"Ð"): u"D",
-    ord(u"Ñ"): u"N",
-    ord(u"Ò"): u"O",
-    ord(u"Ó"): u"O",
-    # ord(u"Ô"): u"O",
-    ord(u"Õ"): u"O",
-    ord(u"Ø"): u"Oe",
-    ord(u"Œ"): u"Oe",
-    ord(u"Ù"): u"U",
-    ord(u"Ú"): u"U",
-    ord(u"Û"): u"U",
-    ord(u"Ý"): u"Y",
-    ord(u"Þ"): u"Th",
-    ord(u"à"): u"a",
-    ord(u"á"): u"a",
-    ord(u"â"): u"a",
-    ord(u"ã"): u"a",
-    ord(u"å"): u"a",
-    ord(u"æ"): u"ae",
-    ord(u"ç"): u"c",
-    # ord(u"è"): u"e",
-    # ord(u"é"): u"e",
-    # ord(u"ê"): u"e",
-    ord(u"ì"): u"i",
-    ord(u"í"): u"i",
-    ord(u"î"): u"i",
-    ord(u"ð"): u"d",
-    ord(u"ñ"): u"n",
-    ord(u"ò"): u"o",
-    ord(u"ó"): u"o",
-    # ord(u"ô"): u"o",
-    ord(u"õ"): u"o",
-    ord(u"ø"): u"oe",
-    ord(u"œ"): u"oe",
-    ord(u"ù"): u"u",
-    ord(u"ú"): u"u",
-    ord(u"û"): u"u",
-    ord(u"ý"): u"y",
-    ord(u"þ"): u"Th",
-    ord(u"Š"): u"S",
-    ord(u"Ş"): u"S",
-    ord(u"š"): u"s",
-    ord(u"Č"): u"C",
-    ord(u"ă"): u"a",
-    ord(u"č"): u"c"
-}
-mappingusername = {
-    ord(u"Ä"): u"Ae",
-    ord(u"ä"): u"ae",
-    ord(u"Ë"): u"E",
-    ord(u"ë"): u"e",
-    ord(u"Ï"): u"I",
-    ord(u"ï"): u"i",
-    ord(u"Ö"): u"Oe",
-    ord(u"ö"): u"oe",
-    ord(u"Ü"): u"Ue",
-    ord(u"ü"): u"ue",
-    ord(u"Ÿ"): u"Y",
-    ord(u"ÿ"): u"y",
-    ord(u"ß"): u"ss",
-    ord(u"À"): u"A",
-    ord(u"Á"): u"A",
-    ord(u"Â"): u"A",
-    ord(u"Ã"): u"A",
-    ord(u"Å"): u"A",
-    ord(u"Æ"): u"Ae",
-    ord(u"Ç"): u"C",
-    ord(u"È"): u"E",
-    ord(u"É"): u"E",
-    ord(u"Ê"): u"E",
-    ord(u"Ì"): u"I",
-    ord(u"Í"): u"I",
-    ord(u"Î"): u"I",
-    ord(u"Ð"): u"D",
-    ord(u"Ñ"): u"N",
-    ord(u"Ò"): u"O",
-    ord(u"Ó"): u"O",
-    ord(u"Ô"): u"O",
-    ord(u"Õ"): u"O",
-    ord(u"Ø"): u"Oe",
-    ord(u"Œ"): u"Oe",
-    ord(u"Ù"): u"U",
-    ord(u"Ú"): u"U",
-    ord(u"Û"): u"U",
-    ord(u"Ý"): u"Y",
-    ord(u"Þ"): u"Th",
-    ord(u"à"): u"a",
-    ord(u"á"): u"a",
-    ord(u"â"): u"a",
-    ord(u"ã"): u"a",
-    ord(u"å"): u"a",
-    ord(u"æ"): u"ae",
-    ord(u"ç"): u"c",
-    ord(u"è"): u"e",
-    ord(u"é"): u"e",
-    ord(u"ê"): u"e",
-    ord(u"ì"): u"i",
-    ord(u"í"): u"i",
-    ord(u"î"): u"i",
-    ord(u"ð"): u"d",
-    ord(u"ñ"): u"n",
-    ord(u"ò"): u"o",
-    ord(u"ó"): u"o",
-    ord(u"ô"): u"o",
-    ord(u"õ"): u"o",
-    ord(u"ø"): u"oe",
-    ord(u"œ"): u"oe",
-    ord(u"ù"): u"u",
-    ord(u"ú"): u"u",
-    ord(u"û"): u"u",
-    ord(u"ý"): u"y",
-    ord(u"þ"): u"Th",
-    ord(u"Š"): u"S",
-    ord(u"Ş"): u"S",
-    ord(u"š"): u"s",
-    ord(u"Č"): u"C",
-    ord(u"ă"): u"a",
-    ord(u"č"): u"c"
-}
-
-mappingklassen = {
-    "05B-Schueler": "5b",
-    "05A-Schueler": "5a",
-    "05C-Schueler": "5c",
-    "06A-Schueler": "6a",
-    "06B-Schueler": "6b",
-    "06C-Schueler": "6c",
-    "07A-Schueler": "7a",
-    "07B-Schueler": "7b",
-    "07C-Schueler": "7c",
-    "08A-Schueler": "8a",
-    "08B-Schueler": "8b",
-    "08C-Schueler": "8c",
-    "09A-Schueler": "9a",
-    "09B-Schueler": "9b",
-    "09C-Schueler": "9c",
-    "EF-Schueler": "EF",
-    "Q1-Schueler": "Q1",
-    "Q2-Schueler": "Q2"
-}
-
-
 def returnKlasseOfUser(user):
     klassen = returnCoursesOfStudent(user.lehrerid)
+    mappingklassen = mappings.mappingklassen
     for item in mappingklassen:
         if item in klassen:
             return mappingklassen[item]
@@ -318,10 +148,13 @@ def returnKlasseOfUser(user):
 
 def returnUntisName(user):
     bday = user.birthday.split(".")
-    try:
-        untisname = f"{user.name.translate(mappinguntis)}_{user.given.translate(mappinguntis)}_{bday[2]}{bday[1]}{bday[0]}"
-    except:
-        untisname = returnUsername(user.given, user.name, "vorname.nachname")
+    if "X" in user.lehrerid:
+        return returnUsername(user.given, user.name, "kurzform")
+    else:
+        try:
+            untisname = f"{user.name.translate(mappings.mappinguntis)}_{user.given.translate(mappings.mappinguntis)}_{bday[2]}{bday[1]}{bday[0]}"
+        except:
+            print(f"Fehler bei {user}, konnte keinen Untisnamen erstellen")
     return untisname
 
 
@@ -331,14 +164,75 @@ def readFile(users, groups, memberships):
     readMemberships(memberships)
 
 
+def webuntisUid(user):
+    return returnUsername(user.given, user.name, "kurzform") if "X" in user.lehrerid else user.lehrerid[10:]
+
+
+def userNameUntiscleaned(user):
+    return user.name.translate(mappings.mappinguntis)
+
+
+def userGivenUntiscleaned(user):
+    return user.given.translate(mappings.mappinguntis)
+
+
+def userEmailIfTeacher(user):
+    return user.email if user.institutionrole == "faculty" else ""
+
+
+def returnUsernameCSV(user):
+    return user.username
+
+
+def returnUsernameNC(user):
+    return f'{user.username}-sso' if "X" in user.lehrerid else user.lehrerid[10:]
+
+
+def returnBirthday(user):
+    return user.birthday
+
+
+def returnQuota(user):
+    return 20000 if "X" in user.lehrerid else 1000
+
+
+def returnInitialPassword(user):
+    return f'{user.lehrerid[-3:]}{user.username[-2:]}{stripHyphensFromBirthday(user.birthday)[:3]}{user.username[:2]}'
+
+
+def returnCoursesAsString(courses):
+    return f'{"##".join(courses)}'
+
+
+def returnWebuntisRole(user):
+    return "Teacher" if "X" in user.lehrerid else "Student"
+
+
 def createKeyCloakCSV(nameOfOutputCsv: str):
     with open(nameOfOutputCsv, "w", encoding="utf-8") as f:
+        mappingSpaltentitelCSV = mappings.mappingSpaltentitelCSV
         f.write(
-            "webuntisKurzname;webuntisSchluessel(extern);Nachname;Vorname;webuntisKlasse;Email;Benutzername;Geburtstag;NCQuota;Initialpasswort;Gruppen\n")
+            f'{mappingSpaltentitelCSV[0]};{mappingSpaltentitelCSV[1]};{mappingSpaltentitelCSV[2]};{mappingSpaltentitelCSV[3]};{mappingSpaltentitelCSV[4]};{mappingSpaltentitelCSV[5]};{mappingSpaltentitelCSV[6]};{mappingSpaltentitelCSV[7]};{mappingSpaltentitelCSV[8]};{mappingSpaltentitelCSV[9]};{mappingSpaltentitelCSV[10]};{mappingSpaltentitelCSV[11]};{mappingSpaltentitelCSV[12]};{mappingSpaltentitelCSV[13]}\n')
         for user in users:
             courses = returnCoursesOfStudent(user.lehrerid)
+            mappingSpaltenschleife = {
+                0: 'luisengymnasium-duesseldorf',
+                1: f'{returnUntisName(user)}',
+                2: f'{webuntisUid(user)}',
+                3: f'{userNameUntiscleaned(user)}',
+                4: f'{userGivenUntiscleaned(user)}',
+                5: f'{returnKlasseOfUser(user)}',
+                6: f'{userEmailIfTeacher(user)}',
+                7: f'{returnUsernameCSV(user)}',
+                8: f'{returnBirthday(user)}',
+                9: f'{returnQuota(user)}',
+                10: f'{returnInitialPassword(user)}',
+                11: f'{returnCoursesAsString(courses)}',
+                12: f'{returnUsernameNC(user)}',
+                13: f'{returnWebuntisRole(user)}'
+            }
             f.write(
-                f'{returnUntisName(user)};{user.username if "X" in user.lehrerid else user.lehrerid[10:]};{user.name.translate(mappinguntis)};{user.given.translate(mappinguntis)};{returnKlasseOfUser(user)};{user.email if user.institutionrole == "faculty" else ""};{user.username};{user.birthday};{20000 if "X" in user.lehrerid else 1000};{f"{user.lehrerid[-3:]}{user.username[-2:]}{stripHyphensFromBirthday(user.birthday)[:3]}{user.username[:2]}"};{"##".join(courses)}\n')
+                f'{mappingSpaltenschleife[0]};{mappingSpaltenschleife[1]};{mappingSpaltenschleife[2]};{mappingSpaltenschleife[3]};{mappingSpaltenschleife[4]};{mappingSpaltenschleife[5]};{mappingSpaltenschleife[6]};{mappingSpaltenschleife[7]};{mappingSpaltenschleife[8]};{mappingSpaltenschleife[9]};{mappingSpaltenschleife[10]};{mappingSpaltenschleife[11]};{mappingSpaltenschleife[12]};{mappingSpaltenschleife[13]}\n')
 
 
 def stripHyphensFromBirthday(birthday: str):
@@ -384,7 +278,8 @@ def checkForDuplicates():
 def renameGroups():
     for group in groups:
         if "Klasse" in group.name:
-            group.name = group.name[7:].replace(" ", "")
+            group.name = group.name[7:].replace(" ", "").replace(
+                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
         if "(" in group.name:
             start = group.name.rfind("(")
             ende = group.name.rfind(")")
@@ -394,33 +289,17 @@ def renameGroups():
             except:
                 digitfound = ''
             templist = group.name[start+1:ende].replace(" ", "").split(",")
-            group.name = f"2122-{templist[0]}-{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}-{templist[2]}-{templist[3]}"
+            group.name = f"2122-{templist[0]}-{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}-{templist[2]}-{templist[3]}".replace(
+                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
         if "Alle - Schueler" in group.name:
-            group.name = "Alle-Schueler"
+            group.name = "Alle-Schueler".replace(
+                "Schueler", "S").replace("Lehrer", "L").replace(")", "")
         if "Alle - Lehrer" in group.name:
-            group.name = "Alle-Lehrer"
-
-
-klassenliste = [
-    "05A-Schueler",
-    "05B-Schueler",
-    "05C-Schueler",
-    "06A-Schueler",
-    "06B-Schueler",
-    "06C-Schueler",
-    "07A-Schueler",
-    "07B-Schueler",
-    "07C-Schueler",
-    "08A-Schueler",
-    "08B-Schueler",
-    "08C-Schueler",
-    "09A-Schueler",
-    "09B-Schueler",
-    "09C-Schueler",
-    "EF-Schueler",
-    "Q1-Schueler",
-    "Q2-Schueler"
-]
+            group.name = "Alle-Lehrer".replace("Schueler",
+                                               "S").replace("Lehrer", "L").replace(")", "")
+        if "Fach" in group.name:
+            group.name = mappings.mappinggroups[group.name].replace(
+                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
 
 
 def printUserCredentials(filename, importurl):
@@ -453,19 +332,18 @@ def printUserCredentials(filename, importurl):
         doc.append(table)
         return doc
 
-    for klasse in klassenliste:
+    for klasse in mappings.klassenliste:
         for user in users:
             kurse = returnCoursesOfStudent(user.lehrerid)
             if klasse in kurse:
-                addTitle(document, 36, colors.blue,"Benutzername:")
-                addTitle(document, 20, colors.black,f"{user.username}")
-                # print(user.username)
-                addTitle(document, 36, colors.blue,"Passwort:")
+                addTitle(document, 36, colors.blue, "Benutzername:")
+                addTitle(document, 20, colors.black, f"{user.username}")
+                addTitle(document, 36, colors.blue, "Passwort:")
                 addTitle(document, 20, colors.black, f"{user.initialpassword}")
-                addTitle(document, 36, colors.blue,"URL:")
-                addTitle(document, 20, colors.black,importurl)
-                addTitle(document, 36, colors.blue,"QR-Code:")
-                document.append(Image("some_file.png", 8*cm, 8*cm))
+                addTitle(document, 36, colors.blue, "URL:")
+                addTitle(document, 20, colors.black, importurl)
+                addTitle(document, 36, colors.blue, "QR-Code:")
+                document.append(Image("qr-code.png", 8*cm, 8*cm))
         SimpleDocTemplate(
             f"./exports/{klasse}.pdf",
             pagesize=A4,
@@ -476,53 +354,54 @@ def printUserCredentials(filename, importurl):
         ).build(document)
         document = []
 
+    for user in users:
+        if user.institutionrole != "Student":
+            addTitle(document, 36, colors.blue, "Benutzername:")
+            addTitle(document, 20, colors.black, f"{user.username}")
+            addTitle(document, 36, colors.blue, "Passwort:")
+            addTitle(document, 20, colors.black, f"{user.initialpassword}")
+            addTitle(document, 36, colors.blue, "URL:")
+            addTitle(document, 20, colors.black, importurl)
+            addTitle(document, 36, colors.blue, "QR-Code:")
+            document.append(Image("qr-code.png", 8*cm, 8*cm))
+    SimpleDocTemplate(
+        f"./exports/lehrer.pdf",
+        pagesize=A4,
+        rightMargin=12,
+        leftMargin=12,
+        topMargin=12,
+        bottomMargin=6
+    ).build(document)
+    document = []
+
+    for user in users:
+        addTitle(document, 36, colors.blue, "Benutzername:")
+        addTitle(document, 20, colors.black, f"{user.username}")
+        addTitle(document, 36, colors.blue, "Passwort:")
+        addTitle(document, 20, colors.black, f"{user.initialpassword}")
+        addTitle(document, 36, colors.blue, "URL:")
+        addTitle(document, 20, colors.black, importurl)
+        addTitle(document, 36, colors.blue, "QR-Code:")
+        document.append(Image("qr-code.png", 8*cm, 8*cm))
+    SimpleDocTemplate(
+        f"./exports/{filename}",
+        pagesize=A4,
+        rightMargin=12,
+        leftMargin=12,
+        topMargin=12,
+        bottomMargin=6
+    ).build(document)
+    document = []
+
 
 if __name__ == "__main__":
     users = []
     groups = []
     memberships = []
-    tree = ET.parse("SchILD20220301.xml")
+    tree = ET.parse("SchILD20220308.xml")
     root = tree.getroot()
     readFile(users, groups, memberships)
     renameGroups()
-    # createKeyCloakCSV("Export20220301v6.csv")
+    createKeyCloakCSV("Export20220301v11.csv")
     checkForDuplicates()
-    printUserCredentials("usernames.pdf", "some-url")
-    # for user in users:
-    #     print(user.username, user.given, user.name)
-
-    # for user in users:
-    #     username = user.username
-    #     for user in users:
-    #         if user.username == username:
-    #             user.username == user.username + "1"
-
-    # for group in groups:
-    #     print(group.name)
-
-    # for user in users:
-    #     if "EF-Schueler" in returnCoursesOfStudent(user.lehrerid):
-    #         print(returnUntisName(user))
-    # for user in users:
-    #     if "Q1-Schueler" in returnCoursesOfStudent(user.lehrerid):
-    #         print(returnUntisName(user))
-    # for user in users:
-    #     if "Q2-Schueler" in returnCoursesOfStudent(user.lehrerid):
-    #         print(returnUntisName(user))
-    # for user in users:
-    #     print(returnKlasseOfUser(user))
-
-    # print(returnUserGivenAndName("1082954"))
-    # doc = Canvas('advanced.pdf')
-    # qr = QRCodeImage(
-    #     size=25 * mm,
-    #     fill_color='blue',
-    #     back_color='white',
-    #     border=4,
-    #     version=2,
-    #     error_correction=qrcode.constants.ERROR_CORRECT_H,
-    # )
-    # qr.add_data('url')
-    # qr.drawOn(doc, 30 * mm, 50 * mm)
-    # doc.showPage()
-    # doc.save()
+    printUserCredentials("usernames.pdf", "https://ajax.webuntis.com")

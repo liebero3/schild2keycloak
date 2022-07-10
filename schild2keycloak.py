@@ -277,9 +277,11 @@ def checkForDuplicates():
 
 def renameGroups():
     for group in groups:
+        # print(group.name)
         if "Klasse" in group.name:
             group.name = group.name[7:].replace(" ", "").replace(
                 "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
+            # print(group.name)
         if "(" in group.name:
             start = group.name.rfind("(")
             ende = group.name.rfind(")")
@@ -398,10 +400,34 @@ if __name__ == "__main__":
     users = []
     groups = []
     memberships = []
-    tree = ET.parse("SchILD20220308.xml")
+    tree = ET.parse("SchILD20220624.xml")
     root = tree.getroot()
     readFile(users, groups, memberships)
     renameGroups()
-    createKeyCloakCSV("Export20220301v11.csv")
+    createKeyCloakCSV("Export20220624.csv")
     checkForDuplicates()
-    printUserCredentials("usernames.pdf", "https://ajax.webuntis.com")
+    # printUserCredentials("usernames20220624.pdf", "https://ajax.webuntis.com")
+    for user in users:
+        if user.name == "Salzwedel":
+            print(user.lehrerid)
+    print(returnCoursesOfStudent("ID-2309553-0102X"))
+    # for user in users:
+    #     kurse = returnCoursesOfStudent(user.lehrerid)
+    #     if "06C-S" in kurse:
+    #         print(f"{user.name}, {user.given}")
+
+    # print(returnCoursesOfStudent("ID-blub-blub"))
+
+    # print(returnCoursesOfStudent('1139685'))
+    # for user in users:
+    #     print(user.lehrerid)
+    # allgroups = []
+    # for user in users:
+    #     allgroups += returnCoursesOfStudent(user.lehrerid)
+    # print(list(set(allgroups)))
+    # with open("Export20220301v12.csv","r") as f:
+    #     n = 0
+    #     for line in f.readlines():
+    #         if "Alle-S##Q2-S" in line:
+    #             n += 1
+    #     print(701-n)

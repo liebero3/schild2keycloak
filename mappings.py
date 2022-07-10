@@ -149,7 +149,9 @@ mappingklassen = {
     "09C-S": "9c",
     "EF-S": "EF",
     "Q1-S": "Q1",
-    "Q2-S": "Q2"
+    "Q2-S": "Q2",
+    "WK-S": "WK",
+    "TK-S": "TK"
 }
 
 mappingSpaltentitelCSV = {
@@ -261,7 +263,13 @@ mappinggroups = {
     "Fach VT Mathematik": "",
     "Fach VT Mathematik - Lehrer": "",
     "Gruppe Zustimmung-Presse-und-TV": "",
-    "Gruppe Zustimmung-Presse-und-TV - Mitglieder": ""
+    "Gruppe Zustimmung-Presse-und-TV - Mitglieder": "",
+    "Fach Foto AG": "",
+    "Fach Foto AG - Lehrer": "",
+    "Fach Theater AG": "",
+    "Fach VT Französisch": "",
+    "Fach VT Französisch - Lehrer": "",
+    "Fach Theater AG - Lehrer": ""
 }
 
 klassenliste = [
@@ -282,5 +290,7 @@ klassenliste = [
     "09C-S",
     "EF-S",
     "Q1-S",
-    "Q2-S"
+    "Q2-S",
+    "WK-S",
+    "TK-S"
 ]

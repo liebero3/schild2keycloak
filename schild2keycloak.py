@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import re
 import mappings
-from turtle import color
+# from turtle import color
 from mmap import PAGESIZE
 from ctypes import alignment
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT, TA_RIGHT
@@ -10,6 +10,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+import csv
+from difflib import SequenceMatcher
+import pandas as pd
 
 
 class User:
@@ -96,6 +99,7 @@ def readGroups(groups):
         # use short or long as course info
         for child in elem.findall("{http://www.metaventis.com/ns/cockpit/sync/1.0}description/{http://www.metaventis.com/ns/cockpit/sync/1.0}short"):
             name = child.text
+            # print(name)
         for child in elem.findall("{http://www.metaventis.com/ns/cockpit/sync/1.0}relationship/{http://www.metaventis.com/ns/cockpit/sync/1.0}sourcedid/{http://www.metaventis.com/ns/cockpit/sync/1.0}id"):
             parent = child.text
         groups.append(Group(groupid, name, parent))
@@ -121,6 +125,7 @@ def returnCoursesOfStudent(studentid):
             if membership.nameid == studentid]:
         groupname = [group.name for group in groups
                      if group.groupid == course][0]
+        # print(groupname)
         if groupname != "":
             courseslist.append(groupname)
     return courseslist
@@ -128,21 +133,25 @@ def returnCoursesOfStudent(studentid):
 
 def returnUsername(given, last, typ):
     if typ == "vorname.nachname":
-        username = given.translate(mappings.mappingusername).split(" ")[0] + "." + \
-            last.translate(mappings.mappingusername).replace(
-                " ", "").replace("-", "")
+        username = given.translate(mappings.mappingusername).split(" ")[0] + "." + last.translate(mappings.mappingusername).replace(
+            " ", "").replace("-", "")
+        # print(f"{username}")
+        if username in mappings.alternative_usernames:
+            username = mappings.alt_usernames[username]
+            # print(f"Habe alternativen username gespeichert: {username}")
     if typ == "kurzform":
-        username = given.translate(mappings.mappingusername).split(" ")[0][:4] + \
-            last.translate(mappings.mappingusername).replace(
-                " ", "").replace("-", "")[:4]
+        username = given.translate(mappings.mappingusername).split(" ")[0][:4] + last.translate(mappings.mappingusername).replace(
+            " ", "").replace("-", "")[:4]
     return username.lower()
 
 
 def returnKlasseOfUser(user):
     klassen = returnCoursesOfStudent(user.lehrerid)
+    # print(klassen)
     mappingklassen = mappings.mappingklassen
+    # print(mappingklassen)
     for item in mappingklassen:
-        if item in klassen:
+        if item+f"{schuljahr}" in klassen:
             return mappingklassen[item]
 
 
@@ -154,7 +163,7 @@ def returnUntisName(user):
         try:
             untisname = f"{user.name.translate(mappings.mappinguntis)}_{user.given.translate(mappings.mappinguntis)}_{bday[2]}{bday[1]}{bday[0]}"
         except:
-            print(f"Fehler bei {user}, konnte keinen Untisnamen erstellen")
+            print(f"Fehler bei {user}, konnte kein Untisname erstellt werden.")
     return untisname
 
 
@@ -177,7 +186,7 @@ def userGivenUntiscleaned(user):
 
 
 def userEmailIfTeacher(user):
-    return user.email if user.institutionrole == "faculty" else ""
+    return user.email if (user.institutionrole == "faculty" or user.institutionrole == "extern") else f"{user.username}@luisengym.de"
 
 
 def returnUsernameCSV(user):
@@ -235,6 +244,127 @@ def createKeyCloakCSV(nameOfOutputCsv: str):
                 f'{mappingSpaltenschleife[0]};{mappingSpaltenschleife[1]};{mappingSpaltenschleife[2]};{mappingSpaltenschleife[3]};{mappingSpaltenschleife[4]};{mappingSpaltenschleife[5]};{mappingSpaltenschleife[6]};{mappingSpaltenschleife[7]};{mappingSpaltenschleife[8]};{mappingSpaltenschleife[9]};{mappingSpaltenschleife[10]};{mappingSpaltenschleife[11]};{mappingSpaltenschleife[12]};{mappingSpaltenschleife[13]}\n')
 
 
+def createKeyCloakCSVTeacher(nameOfOutputCsv: str):
+    with open(nameOfOutputCsv + "_teachers.csv", "w", encoding="utf-8") as f:
+        mappingSpaltentitelCSV = mappings.mappingSpaltentitelCSV
+        f.write(
+            f'{mappingSpaltentitelCSV[0]};{mappingSpaltentitelCSV[1]};{mappingSpaltentitelCSV[2]};{mappingSpaltentitelCSV[3]};{mappingSpaltentitelCSV[4]};{mappingSpaltentitelCSV[5]};{mappingSpaltentitelCSV[6]};{mappingSpaltentitelCSV[7]};{mappingSpaltentitelCSV[8]};{mappingSpaltentitelCSV[9]};{mappingSpaltentitelCSV[10]};{mappingSpaltentitelCSV[11]};{mappingSpaltentitelCSV[12]};{mappingSpaltentitelCSV[13]}\n')
+        for user in users:
+            if user.institutionrole == 'faculty':  # Filter for teachers
+                courses = returnCoursesOfStudent(user.lehrerid)
+                mappingSpaltenschleife = {
+                    0: 'luisengymnasium-duesseldorf',
+                    1: f'{returnUntisName(user)}',
+                    2: f'{webuntisUid(user)}',
+                    3: f'{userNameUntiscleaned(user)}',
+                    4: f'{userGivenUntiscleaned(user)}',
+                    5: f'{returnKlasseOfUser(user)}',
+                    6: f'{userEmailIfTeacher(user)}',
+                    7: f'{returnUsernameCSV(user)}',
+                    8: f'{returnBirthday(user)}',
+                    9: f'{returnQuota(user)}',
+                    10: f'{returnInitialPassword(user)}',
+                    11: f'{returnCoursesAsString(courses)}',
+                    12: f'{returnUsernameNC(user)}',
+                    13: f'{returnWebuntisRole(user)}'
+                }
+                f.write(
+                    f'{mappingSpaltenschleife[0]};{mappingSpaltenschleife[1]};{mappingSpaltenschleife[2]};{mappingSpaltenschleife[3]};{mappingSpaltenschleife[4]};{mappingSpaltenschleife[5]};{mappingSpaltenschleife[6]};{mappingSpaltenschleife[7]};{mappingSpaltenschleife[8]};{mappingSpaltenschleife[9]};{mappingSpaltenschleife[10]};{mappingSpaltenschleife[11]};{mappingSpaltenschleife[12]};{mappingSpaltenschleife[13]}\n')
+
+
+def createKeyCloakCSVStudent(nameOfOutputCsv: str):
+    with open(nameOfOutputCsv + "_students.csv", "w", encoding="utf-8") as f:
+        mappingSpaltentitelCSV = mappings.mappingSpaltentitelCSV
+        f.write(
+            f'{mappingSpaltentitelCSV[0]};{mappingSpaltentitelCSV[1]};{mappingSpaltentitelCSV[2]};{mappingSpaltentitelCSV[3]};{mappingSpaltentitelCSV[4]};{mappingSpaltentitelCSV[5]};{mappingSpaltentitelCSV[6]};{mappingSpaltentitelCSV[7]};{mappingSpaltentitelCSV[8]};{mappingSpaltentitelCSV[9]};{mappingSpaltentitelCSV[10]};{mappingSpaltentitelCSV[11]};{mappingSpaltentitelCSV[12]};{mappingSpaltentitelCSV[13]}\n')
+        for user in users:
+            if user.institutionrole == 'Student':  # Filter for students
+                courses = returnCoursesOfStudent(user.lehrerid)
+                mappingSpaltenschleife = {
+                    0: 'luisengymnasium-duesseldorf',
+                    1: f'{returnUntisName(user)}',
+                    2: f'{webuntisUid(user)}',
+                    3: f'{userNameUntiscleaned(user)}',
+                    4: f'{userGivenUntiscleaned(user)}',
+                    5: f'{returnKlasseOfUser(user)}',
+                    6: f'{userEmailIfTeacher(user)}',
+                    7: f'{returnUsernameCSV(user)}',
+                    8: f'{returnBirthday(user)}',
+                    9: f'{returnQuota(user)}',
+                    10: f'{returnInitialPassword(user)}',
+                    11: f'{returnCoursesAsString(courses)}',
+                    12: f'{returnUsernameNC(user)}',
+                    13: f'{returnWebuntisRole(user)}'
+                }
+                f.write(
+                    f'{mappingSpaltenschleife[0]};{mappingSpaltenschleife[1]};{mappingSpaltenschleife[2]};{mappingSpaltenschleife[3]};{mappingSpaltenschleife[4]};{mappingSpaltenschleife[5]};{mappingSpaltenschleife[6]};{mappingSpaltenschleife[7]};{mappingSpaltenschleife[8]};{mappingSpaltenschleife[9]};{mappingSpaltenschleife[10]};{mappingSpaltenschleife[11]};{mappingSpaltenschleife[12]};{mappingSpaltenschleife[13]}\n')
+
+
+def createKeyCloakCSVNoPW(nameOfOutputCsv: str):
+    with open(nameOfOutputCsv, "w", encoding="utf-8") as f:
+        mappingSpaltentitelCSV = mappings.mappingSpaltentitelCSV
+        f.write(
+            f'{mappingSpaltentitelCSV[0]};{mappingSpaltentitelCSV[1]};{mappingSpaltentitelCSV[2]};{mappingSpaltentitelCSV[3]};{mappingSpaltentitelCSV[4]};{mappingSpaltentitelCSV[6]};{mappingSpaltentitelCSV[7]};{mappingSpaltentitelCSV[8]};{mappingSpaltentitelCSV[9]};{mappingSpaltentitelCSV[11]};{mappingSpaltentitelCSV[12]};{mappingSpaltentitelCSV[13]}\n')
+        for user in users:
+            courses = returnCoursesOfStudent(user.lehrerid)
+            mappingSpaltenschleife = {
+                0: 'luisengymnasium-duesseldorf',
+                1: f'{returnUntisName(user)}',
+                2: f'{webuntisUid(user)}',
+                3: f'{userNameUntiscleaned(user)}',
+                4: f'{userGivenUntiscleaned(user)}',
+                6: f'{userEmailIfTeacher(user)}',
+                7: f'{returnUsernameCSV(user)}',
+                8: f'{returnBirthday(user)}',
+                9: f'{returnQuota(user)}',
+                11: f'{returnCoursesAsString(courses)}',
+                12: f'{returnUsernameNC(user)}',
+                13: f'{returnWebuntisRole(user)}'
+            }
+            f.write(
+                f'{mappingSpaltenschleife[0]};{mappingSpaltenschleife[1]};{mappingSpaltenschleife[2]};{mappingSpaltenschleife[3]};{mappingSpaltenschleife[4]};{mappingSpaltenschleife[6]};{mappingSpaltenschleife[7]};{mappingSpaltenschleife[8]};{mappingSpaltenschleife[9]};{mappingSpaltenschleife[11]};{mappingSpaltenschleife[12]};{mappingSpaltenschleife[13]}\n')
+
+
+def createKeyCloakCSVNoPW2(nameOfOutputCsv: str):
+    mappingSpaltentitelCSV = mappings.mappingSpaltentitelCSV
+    header = f'{mappingSpaltentitelCSV[0]};{mappingSpaltentitelCSV[1]};{mappingSpaltentitelCSV[2]};{mappingSpaltentitelCSV[3]};{mappingSpaltentitelCSV[4]};{mappingSpaltentitelCSV[6]};{mappingSpaltentitelCSV[7]};{mappingSpaltentitelCSV[8]};{mappingSpaltentitelCSV[9]};{mappingSpaltentitelCSV[11]};{mappingSpaltentitelCSV[12]};{mappingSpaltentitelCSV[13]}\n'
+    fileCount = 1
+    entryCount = 0
+
+    f = open(nameOfOutputCsv + str(fileCount) + '.csv', "w", encoding="utf-8")
+    f.write(header)
+
+    for user in users:
+        if entryCount == 200:
+            f.close()
+            fileCount += 1
+            entryCount = 0
+            f = open(nameOfOutputCsv + str(fileCount) +
+                     '.csv', "w", encoding="utf-8")
+            f.write(header)
+
+        courses = returnCoursesOfStudent(user.lehrerid)
+        mappingSpaltenschleife = {
+            0: 'luisengymnasium-duesseldorf',
+            1: f'{returnUntisName(user)}',
+            2: f'{webuntisUid(user)}',
+            3: f'{userNameUntiscleaned(user)}',
+            4: f'{userGivenUntiscleaned(user)}',
+            6: f'{userEmailIfTeacher(user)}',
+            7: f'{returnUsernameCSV(user)}',
+            8: f'{returnBirthday(user)}',
+            9: f'{returnQuota(user)}',
+            11: f'{returnCoursesAsString(courses)}',
+            12: f'{returnUsernameNC(user)}',
+            13: f'{returnWebuntisRole(user)}'
+        }
+        f.write(
+            f'{mappingSpaltenschleife[0]};{mappingSpaltenschleife[1]};{mappingSpaltenschleife[2]};{mappingSpaltenschleife[3]};{mappingSpaltenschleife[4]};{mappingSpaltenschleife[6]};{mappingSpaltenschleife[7]};{mappingSpaltenschleife[8]};{mappingSpaltenschleife[9]};{mappingSpaltenschleife[11]};{mappingSpaltenschleife[12]};{mappingSpaltenschleife[13]}\n')
+
+        entryCount += 1
+    f.close()
+
+
 def stripHyphensFromBirthday(birthday: str):
     return birthday.replace("-", "")
 
@@ -279,10 +409,10 @@ def renameGroups():
     for group in groups:
         # print(group.name)
         if "Klasse" in group.name:
-            group.name = group.name[7:].replace(" ", "").replace(
-                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
+            group.name = f'{group.name[7:].replace(" ", "").replace("Schueler", "S").replace("Lehrer", "L").replace("--", "").replace("-", "").replace(")", "").replace("UNESCO","U")}'+f"{schuljahr}"
+            # group.name = f'{group.name[7:].replace(" ", "").replace("Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "").replace("UNESCO","U")}'+f"{schuljahr}"
             # print(group.name)
-        if "(" in group.name:
+        if "BI8" in group.name:
             start = group.name.rfind("(")
             ende = group.name.rfind(")")
             try:
@@ -290,21 +420,41 @@ def renameGroups():
                 digitfound = m.group(0)
             except:
                 digitfound = ''
-            templist = group.name[start+1:ende].replace(" ", "").split(",")
-            group.name = f"2122-{templist[0]}-{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}-{templist[2]}-{templist[3]}".replace(
-                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
+            templist = group.name[start -
+                                  3:ende].replace(" ", "").replace("(9", "").split(",")
+            group.name = f"{templist[0]}{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}{templist[2]}{templist[3]}".replace(
+                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")+f"{schuljahr}"
+            # group.name = f"{templist[0]}-{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}-{templist[2]}-{templist[3]}".replace(
+            #     "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")+f"-{schuljahr}"
+        elif "(" in group.name:
+            start = group.name.rfind("(")
+            ende = group.name.rfind(")")
+            try:
+                m = re.search(r"\d", group.name)
+                digitfound = m.group(0)
+            except:
+                digitfound = ''
+            templist = group.name[start+1:ende].replace(
+                " ", "").replace("UNESCO", "U").split(",")
+            group.name = f"{templist[0]}{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}{templist[2]}{templist[3]}".replace(
+                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")+f"{schuljahr}"
+            # group.name = f"{templist[0]}-{templist[1] if templist[1] == 'GK' or templist[1] == 'LK' else ''}{digitfound if templist[1] == 'GK' or templist[1] == 'LK' else ''}-{templist[2]}-{templist[3]}".replace(
+            #     "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")+f"-{schuljahr}"
         if "Alle - Schueler" in group.name:
             group.name = "Alle-Schueler".replace(
-                "Schueler", "S").replace("Lehrer", "L").replace(")", "")
+                "Schueler", "S").replace("Lehrer", "L").replace(")", "").replace("-", "")
         if "Alle - Lehrer" in group.name:
             group.name = "Alle-Lehrer".replace("Schueler",
-                                               "S").replace("Lehrer", "L").replace(")", "")
+                                               "S").replace("Lehrer", "L").replace(")", "").replace("-", "")
         if "Fach" in group.name:
-            group.name = mappings.mappinggroups[group.name].replace(
-                "Schueler", "S").replace("Lehrer", "L").replace("--", "-").replace(")", "")
+            group.name = mappings.mappinggroups[group.name]
+            # print(group.name)
+        if "Bereich" in group.name:
+            group.name = mappings.mappinggroups[group.name]
+            # print(group.name)
 
 
-def printUserCredentials(filename, importurl):
+def printUserCredentials(exportdate, importurl):
     document = []
 
     def addTitle(doc, fontSize, color, text):
@@ -335,19 +485,23 @@ def printUserCredentials(filename, importurl):
         return doc
 
     for klasse in mappings.klassenliste:
+        # print(klasse)
         for user in users:
             kurse = returnCoursesOfStudent(user.lehrerid)
+            # print(klasse)
+            # print(kurse)
             if klasse in kurse:
+                # print(klasse)
                 addTitle(document, 36, colors.blue, "Benutzername:")
                 addTitle(document, 20, colors.black, f"{user.username}")
                 addTitle(document, 36, colors.blue, "Passwort:")
                 addTitle(document, 20, colors.black, f"{user.initialpassword}")
-                addTitle(document, 36, colors.blue, "URL:")
+                addTitle(document, 36, colors.blue, "Anleitung:")
                 addTitle(document, 20, colors.black, importurl)
-                addTitle(document, 36, colors.blue, "QR-Code:")
                 document.append(Image("qr-code.png", 8*cm, 8*cm))
+                document.append(PageBreak())
         SimpleDocTemplate(
-            f"./exports/{klasse}.pdf",
+            f"./exports/{exportdate}_{klasse}.pdf",
             pagesize=A4,
             rightMargin=12,
             leftMargin=12,
@@ -362,12 +516,13 @@ def printUserCredentials(filename, importurl):
             addTitle(document, 20, colors.black, f"{user.username}")
             addTitle(document, 36, colors.blue, "Passwort:")
             addTitle(document, 20, colors.black, f"{user.initialpassword}")
-            addTitle(document, 36, colors.blue, "URL:")
+            addTitle(document, 36, colors.blue, "Anleitung:")
             addTitle(document, 20, colors.black, importurl)
-            addTitle(document, 36, colors.blue, "QR-Code:")
+            addTitle(document, 36, colors.blue, "QR-Code zur Anleitung:")
             document.append(Image("qr-code.png", 8*cm, 8*cm))
+            document.append(PageBreak())
     SimpleDocTemplate(
-        f"./exports/lehrer.pdf",
+        f"./exports/{exportdate}_lehrer.pdf",
         pagesize=A4,
         rightMargin=12,
         leftMargin=12,
@@ -376,58 +531,261 @@ def printUserCredentials(filename, importurl):
     ).build(document)
     document = []
 
+
+def searchSchuljahr(xmlfile):
+    for i in range(10):
+        for j in range(10):
+            with open(xmlfile) as f:
+                if f"20{i}{j}/{i}{j+1}" in f.read():
+                    print(f"{i}{j}/{i}{j+1}")
+                    # return f"{i}{j}/{i}{j+1}"
+                    return f"{i}{j}"
+                if f"20{i}{j}/{i+1}0" in f.read():
+                    print(f"{i}{j}/{i+1}0")
+                    # return f"{i}{j}/{i+1}0"
+                    return f"{i}{j}"
+
+
+def returnGoerresUsernames(csvfile, outputfile, klasse):
+    with open(csvfile) as f:
+        reader = csv.reader(f)
+        data = list(reader)
+
+    data2 = []
+    if ";" in data[1][0]:
+        for line in data:
+            data2.append(line[0].split(";"))
+    else:
+        data2 = data
+
+    with open(outputfile, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["REALM", "AT_webuntisKurzname", "AT_webuntisUid", "US_lastName", "US_firstName", "webuntisKlasse", "US_email",
+                        "US_username", "AT_birthday", "AT_ncQuota", "CR_password", "AT_nc.memberOf", "AT_colloxUid", "AT_webuntisRole"])
+
+        for line in data2:
+            vorname = line[0].strip()
+            nachname = line[1].strip()
+            username = returnUsername(vorname, nachname, 'kurzform')
+            row = [f"luisengymnasium-duesseldorf", f"ZZ-{username}", f"GG-{username}", nachname, vorname, klasse, f"{username}@luisengym.de",
+                   username, "", "1000", f"{username}@luisengym.de", f"Alle-S##{klasse}S23##Sek2-S", username, "Student"]
+            writer.writerow(row)
+
+
+def returnGeorresUsers(csvAlleGoerres, csvBeimLuisen):
+    alleGoerres = []
+    beimLuisen = []
+
+    with open(csvAlleGoerres) as f:
+        reader = csv.reader(f)
+        alleGoerres = list(reader)
+
+    with open(csvBeimLuisen) as f:
+        reader = csv.reader(f)
+        beimLuisen = list(reader)
+
+    for item in alleGoerres:
+        for user in beimLuisen:
+            if SequenceMatcher(None, item[1], user[3]).ratio() > 0.8 and SequenceMatcher(None, item[7], user[4]).ratio() > 0.8:
+                print(item)
+                # if not SequenceMatcher(None, item[7], user[4]).ratio() > 0.8:
+                #     print(item[1], item[7], user[3], user[4])
+            # if item[1] == user[3]:
+            #     print(item)
+    # print(alleGoerres[5][1])
+    # print(beimLuisen[5][3])
+    # for user in alleGoerres:
+    #     print(user)
+
+
+def create_goerres_neu(keycloak, dat, output):
+    # Einlesen der keycloak-Datei
+    keycloak_df = pd.read_csv(keycloak, sep=";", usecols=[
+                              'US_lastName', 'US_firstName'])
+
+    # Einlesen der dat-Datei
+    dat_df = pd.read_csv(dat, sep="|", usecols=['Nachname', 'Vorname'])
+
+    # Listen für die neuen Nutzer
+    new_users_firstname = []
+    new_users_lastname = []
+
+    # Überprüfen Sie jeden Nutzer aus der 'dat'-Datei
+    for index, row in dat_df.iterrows():
+        lastname = row['Nachname']
+        firstname = row['Vorname']
+
+        # Überprüfen Sie, ob der Nachname bereits existiert
+        if lastname in keycloak_df['US_lastName'].values:
+            # Wenn ja, überprüfen Sie, ob der Vorname unter den passenden Nachnamen existiert
+            matching_users = keycloak_df[keycloak_df['US_lastName'] == lastname]
+            if firstname not in matching_users['US_firstName'].values:
+                new_users_firstname.append(firstname)
+                new_users_lastname.append(lastname)
+        else:
+            new_users_firstname.append(firstname)
+            new_users_lastname.append(lastname)
+
+    # Erstellen Sie eine neue DataFrame mit den neuen Nutzern
+    goerres_neu_df = pd.DataFrame(list(
+        zip(new_users_firstname, new_users_lastname)), columns=['vorname', 'nachname'])
+
+    # Speichern Sie die neue DataFrame in einer CSV-Datei
+    goerres_neu_df.to_csv(output, sep=';', index=False)
+
+
+def rueckgabeSchuelerAusKlasse(klasse):
     for user in users:
-        addTitle(document, 36, colors.blue, "Benutzername:")
-        addTitle(document, 20, colors.black, f"{user.username}")
-        addTitle(document, 36, colors.blue, "Passwort:")
-        addTitle(document, 20, colors.black, f"{user.initialpassword}")
-        addTitle(document, 36, colors.blue, "URL:")
-        addTitle(document, 20, colors.black, importurl)
-        addTitle(document, 36, colors.blue, "QR-Code:")
-        document.append(Image("qr-code.png", 8*cm, 8*cm))
-    SimpleDocTemplate(
-        f"./exports/{filename}",
-        pagesize=A4,
-        rightMargin=12,
-        leftMargin=12,
-        topMargin=12,
-        bottomMargin=6
-    ).build(document)
-    document = []
+        kurse = returnCoursesOfStudent(user.lehrerid)
+        # print(klasse)
+        # print(kurse)
+        if klasse in kurse:
+            print(f"{user.given} {user.name}")
+
+
+def csv_neue_user(filealt, fileneu, output):
+    with open(filealt, 'r') as f1, open(fileneu, 'r') as f2:
+        old_data = csv.reader(f1, delimiter=';')
+        new_data = csv.reader(f2, delimiter=';')
+        old_uids = {row[2] for row in old_data}
+        new_rows = [row for row in new_data if row[2] not in old_uids]
+        if len(new_rows) != 0:
+            print("Es gibt neue Schüler!")
+
+    with open(output, 'w', newline='') as f:
+        writer = csv.writer(f, delimiter=';')
+        header = ["REALM", "AT_webuntisKurzname", "AT_webuntisUid", "US_lastName", "US_firstName", "webuntisKlasse", "US_email",
+                  "US_username", "AT_birthday", "AT_ncQuota", "CR_password", "AT_nc.memberOf", "AT_colloxUid", "AT_webuntisRole"]
+        writer.writerow(header)
+        writer.writerows(new_rows)
+
+
+def csv_verlassene_user(filealt, fileneu, output):
+    with open(filealt, 'r') as f1, open(fileneu, 'r') as f2:
+        old_data = csv.reader(f1, delimiter=';')
+        new_data = csv.reader(f2, delimiter=';')
+        new_uids = {row[2] for row in new_data}
+        old_rows = [row for row in old_data if row[2] not in new_uids]
+        if len(old_rows) != 0:
+            print("Schüler haben die Schule verlassen!")
+
+    with open(output, 'w', newline='') as f:
+        writer = csv.writer(f, delimiter=';')
+        header = ["REALM", "AT_webuntisKurzname", "AT_webuntisUid", "US_lastName", "US_firstName", "webuntisKlasse", "US_email",
+                  "US_username", "AT_birthday", "AT_ncQuota", "CR_password", "AT_nc.memberOf", "AT_colloxUid", "AT_webuntisRole"]
+        writer.writerow(header)
+        writer.writerows(old_rows)
+
+
+def moodle_output(schildfile, output):
+    # CSV-Datei lesen
+    df = pd.read_csv(schildfile, delimiter=';')
+
+    # Nur benötigte Spalten auswählen
+    df = df[['US_email', 'AT_nc.memberOf']]
+
+    # Spalten umbenennen
+    df.columns = ['username', 'profile_field_Klasse']
+
+    # Neue CSV-Datei schreiben
+    df.to_csv(output, index=False, sep=';')
+
+
+def createAntonCsv(schildfile, ANTONExport, output):
+    # Lese die csv Dateien
+    df_schild = pd.read_csv(schildfile, sep=';', index_col=False)
+    df_ANTON = pd.read_csv(ANTONExport, sep=';', index_col=False)
+
+    # Nur Zeilen behalten, in denen AT_webuntisRole 'Student' ist
+    df_schild = df_schild[df_schild['AT_webuntisRole'] == 'Student']
+
+    # Umbenennen der Spalten für die Vereinfachung
+    df_schild = df_schild.rename(columns={
+                                 'US_firstName': 'Vorname', 'US_lastName': 'Nachname', 'webuntisKlasse': 'Klasse'})
+    df_ANTON = df_ANTON.rename(columns={'Vorname': 'Vorname', 'Nachname': 'Nachname',
+                               'Klasse': 'Klasse', 'Referenz': 'Referenz', 'Anmelde-Code': 'Anmelde-Code'})
+
+    # Zusammenführen der DataFrames
+    df = pd.merge(df_ANTON, df_schild[['Vorname', 'Nachname', 'Klasse']], on=[
+                  'Vorname', 'Nachname'], how='outer')
+
+    # Den Klassenwert aus schildfile übernehmen, wenn der Nutzer in beiden Dateien vorhanden ist
+    df.loc[df['Klasse_y'].notna(), 'Klasse_x'] = df['Klasse_y']
+
+    # Den Klassenwert auf "delete" setzen, wenn der Nutzer nur in ANTONExport.csv vorhanden ist
+    df.loc[df['Klasse_y'].isna(), 'Klasse_x'] = 'delete'
+
+    # Referenz und Anmelde-Code auf NaN setzen, wenn der Nutzer nur in schildfile vorhanden ist
+    df.loc[df['Klasse_x'].isna(), ['Referenz', 'Anmelde-Code']] = pd.NA
+
+    # Unnötige Spalten entfernen und die Spalten umbenennen
+    df = df.drop(columns=['Klasse_y'])
+    df = df.rename(columns={'Klasse_x': 'Klasse'})
+
+    # Speichern der Ergebnisse in der csv Datei
+    df.to_csv(output, sep=';', index=False)
 
 
 if __name__ == "__main__":
+
+    inputaktuell = "SchILD20230823.xml"
+    inputalt = "SchILD20230822.xml"
+    keycloakexport = 'keycloak20230125.csv'
+    goerresdat = 'SchuelerLeistungsdatenQ2-1.dat'
+    exportdate = ''.join([i for i in inputaktuell if i.isdigit()])
+    exportdate_alt = ''.join([i for i in inputalt if i.isdigit()])
+    print(exportdate)
     users = []
     groups = []
     memberships = []
-    tree = ET.parse("SchILD20220624.xml")
+    tree = ET.parse(inputaktuell)
+    schuljahr = searchSchuljahr(inputaktuell).replace("/", "")
     root = tree.getroot()
     readFile(users, groups, memberships)
     renameGroups()
-    createKeyCloakCSV("Export20220624.csv")
-    checkForDuplicates()
-    # printUserCredentials("usernames20220624.pdf", "https://ajax.webuntis.com")
-    for user in users:
-        if user.name == "Salzwedel":
-            print(user.lehrerid)
-    print(returnCoursesOfStudent("ID-2309553-0102X"))
-    # for user in users:
-    #     kurse = returnCoursesOfStudent(user.lehrerid)
-    #     if "06C-S" in kurse:
-    #         print(f"{user.name}, {user.given}")
 
-    # print(returnCoursesOfStudent("ID-blub-blub"))
+    '''csv's erstellen'''
+    createKeyCloakCSV(f"00-Export{exportdate}.csv")
+    createKeyCloakCSVStudent(f"00-Export{exportdate}.csv")
+    createKeyCloakCSVTeacher(f"00-Export{exportdate}.csv")
+    createKeyCloakCSVNoPW2(f"01-Export{exportdate}noPW.csv")
+    csv_neue_user(f"Export{exportdate_alt}.csv",
+                  f"Export{exportdate}.csv", f"02-schild_neu{exportdate}.csv")
+    csv_verlassene_user(f"Export{exportdate_alt}.csv",
+                        f"Export{exportdate}.csv", f"03-schild_verlassen{exportdate}.csv")
+    moodle_output(f"Export{exportdate}.csv", f"04-moodle{exportdate}.csv")
+    createAntonCsv(f"Export{exportdate}.csv",
+                   "ANTONExport.csv", f"05-anton_import{exportdate}.csv")
 
-    # print(returnCoursesOfStudent('1139685'))
+    '''Goerresuser'''
+    create_goerres_neu(keycloakexport, goerresdat,
+                       f"06-goerres_neu-q2{exportdate}.csv")
+    returnGoerresUsernames("06-goerres_neu-q2.csv",
+                           f"07-goerresimport-q2{exportdate}.csv", "Q1")
+    '''pdfs erstellen'''
+    # printUserCredentials(exportdate, "docs.luisen-gymnasium.de")
+
+    '''ID eines Users nach Namen ausgeben'''
     # for user in users:
-    #     print(user.lehrerid)
+    #     if user.name == "mustermann":
+    #         print(user.lehrerid)
+
+    '''Kurse eines Users nach ID ausgeben'''
+    # print(returnCoursesOfStudent("ID-2309553-0102X"))
+
+    '''Alle Kurse/Gruppen zurueckgeben'''
     # allgroups = []
     # for user in users:
     #     allgroups += returnCoursesOfStudent(user.lehrerid)
-    # print(list(set(allgroups)))
-    # with open("Export20220301v12.csv","r") as f:
-    #     n = 0
-    #     for line in f.readlines():
-    #         if "Alle-S##Q2-S" in line:
-    #             n += 1
-    #     print(701-n)
+    # allgroups = list(set(allgroups))
+    # for group in allgroups:
+    #     if "Lie" in group:
+    #         print(group)
+
+    '''Alle Schüler einer Klasse zurückgeben'''
+    # rueckgabeSchuelerAusKlasse("06BS22")
+    # rueckgabeSchuelerAusKlasse("06AS22")
+    # rueckgabeSchuelerAusKlasse("MGK1Q2Lie22")
+    # rueckgabeSchuelerAusKlasse("PHGK1EFLie22")
+    # rueckgabeSchuelerAusKlasse("IFGK1EFLie22")
+    # rueckgabeSchuelerAusKlasse("IFGK1Q1Lie22")

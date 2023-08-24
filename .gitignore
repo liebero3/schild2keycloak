@@ -139,7 +139,9 @@ cython_debug/
 
 #secret credentials
 credentials.py
-
+datenschutz.py
+elternaccounts.py
+compare_userbase.py
 # Pip
 Pipfile
 Pipfile.lock
@@ -154,3 +156,6 @@ Pipfile.lock
 *.pdf
 *.png
 *.txt
+*.TXT
+*.dat
+*.DS_Store

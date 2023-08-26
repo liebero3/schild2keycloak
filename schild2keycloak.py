@@ -572,6 +572,7 @@ def returnGoerresUsernames(csvfile, outputfile, klasse):
             writer.writerow(row)
 
 
+
 def returnGeorresUsers(csvAlleGoerres, csvBeimLuisen):
     alleGoerres = []
     beimLuisen = []
@@ -726,12 +727,121 @@ def createAntonCsv(schildfile, ANTONExport, output):
     df.to_csv(output, sep=';', index=False)
 
 
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
+
+# def returnElternUsernames(csvfile, outputfile):
+#     with open(csvfile) as f:
+#         reader = csv.reader(f)
+#         data = list(reader)
+
+#     data2 = []
+#     if ";" in data[1][0]:
+#         for line in data:
+#             data2.append(line[0].split(";"))
+#     else:
+#         data2 = data
+
+#     with open(outputfile, 'w', newline='') as f:
+#         writer = csv.writer(f)
+#         writer.writerow(["REALM", "AT_webuntisUid", "AT_webuntisKurzname", "US_lastName", "US_firstName", "US_email","CR_password",
+#                         "US_username", "AT_webuntisRole"])
+
+#         for line in data2:
+#             vorname = line[0].strip()
+#             nachname = line[1].strip()
+#             username = returnUsername(vorname, nachname, 'kurzform')
+#             email = line[2]
+#             row = [f"luisengymnasium-duesseldorf", f"ZEltern-{username}", f"ZEltern-{username}", nachname, vorname, email, email,
+#                    returnUsername(vorname, nachname, "vorname.nachname"), "Parent"]
+#             writer.writerow(row)
+
+
+def returnElternUsernames(csvfile, outputfile):
+    with open(csvfile) as f:
+        reader = csv.reader(f)
+        next(reader)  # Überspringt den Header
+        data = list(reader)
+
+    data2 = []
+    if ";" in data[0][0]:
+        for line in data:
+            data2.append(line[0].split(";"))
+    else:
+        data2 = data
+
+    seen = set()  # Set zum Speichern von bereits gesehenen Zeilen
+    with open(outputfile, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["REALM", "AT_webuntisUid", "AT_webuntisKurzname", "US_lastName", "US_firstName", "US_email","CR_password",
+                        "US_username", "AT_webuntisRole"])
+
+        for line in data2:
+            vorname = line[0].strip()
+            nachname = line[1].strip()
+            username = returnUsername(vorname, nachname, 'kurzform')
+            email = line[2]
+            row = [f"luisengymnasium-duesseldorf", f"ZEltern-{username}", f"ZEltern-{username}", nachname, vorname, email, email,
+                   returnUsername(vorname, nachname, "vorname.nachname"), "Parent"]
+
+            row_tup = tuple(row)  # Wandelt die Liste in ein Tupel um, damit sie in einem Set gespeichert werden kann
+            if row_tup not in seen:  # Wenn die Zeile nicht bereits gesehen wurde, fügt sie hinzu und schreibt sie
+                seen.add(row_tup)
+                writer.writerow(row)
+
+
+def createElternaccounts(formsdatei, schildexport, kontrolloutput, outputfile):
+    forms = pd.read_csv(formsdatei, delimiter=",", quotechar='"')
+    schild = pd.read_csv(schildexport, delimiter=";", quotechar='"')
+
+    outputtest = []
+    output = []
+
+    for idx, form_row in forms.iterrows():
+        for i in range(1, 4):
+            fname = form_row[f'Vorname des {i}. Kindes']
+            lname = form_row[f'Nachname des {i}. Kindes']
+            klasse = form_row[f'Klasse des {i}. Kindes']
+            
+
+            matching_schild = None
+            second_matching_schild = None
+            highest_similarity = 0
+            second_highest_similarity = 0
+            for _, schild_row in schild.iterrows():
+                if schild_row['webuntisKlasse'] == klasse:
+                    full_name_schild = f"{schild_row['US_firstName']} {schild_row['US_lastName']}"
+                    full_name_forms = f"{fname} {lname}"
+                    similarity = similar(full_name_schild, full_name_forms)
+                    if similarity > highest_similarity:
+                        second_highest_similarity = highest_similarity
+                        highest_similarity = similarity
+                        second_matching_schild = matching_schild
+                        matching_schild = schild_row
+                    elif similarity > second_highest_similarity:
+                        second_highest_similarity = similarity
+                        second_matching_schild = schild_row
+
+            if matching_schild is not None:
+                outputtest.append([form_row['Vorname des Elternteils'], form_row['Nachname des Elternteils'], fname, lname, matching_schild['US_firstName'], matching_schild['US_lastName'], matching_schild['AT_webuntisUid'], highest_similarity, second_highest_similarity])
+                output.append([form_row['Vorname des Elternteils'], form_row['Nachname des Elternteils'], form_row["Emailadresse des Elternteils"].lower(), matching_schild['AT_webuntisUid']])
+
+    output_df = pd.DataFrame(outputtest, columns=['Eltern Vorname', 'Eltern Nachname', 'Kind Vorname (forms)', 'Kind Nachname (forms)', 'Kind Vorname (schild)', 'Kind Nachname (schild)', 'AT_webuntisUid', 'Best Similarity Score', 'Second Best Similarity Score'])
+    output_df.to_csv(kontrolloutput, index=False, sep=';')
+    output_df2 = pd.DataFrame(output, columns=['Eltern Vorname', 'Eltern Nachname', 'email', 'student-id'])
+    print(output_df2)
+    output_df2.to_csv(outputfile, index=False, sep=';')
+
+
 if __name__ == "__main__":
 
     inputaktuell = "SchILD20230823.xml"
     inputalt = "SchILD20230822.xml"
     keycloakexport = 'keycloak20230125.csv'
-    goerresdat = 'SchuelerLeistungsdatenQ2-1.dat'
+    goerresdat = 'SchuelerLeistungsdatenQ1.dat'
+    goerresstufe = "Q1"
+    forms_eltern = "forms2.csv"
     exportdate = ''.join([i for i in inputaktuell if i.isdigit()])
     exportdate_alt = ''.join([i for i in inputalt if i.isdigit()])
     print(exportdate)
@@ -759,9 +869,13 @@ if __name__ == "__main__":
 
     '''Goerresuser'''
     create_goerres_neu(keycloakexport, goerresdat,
-                       f"06-goerres_neu-q2{exportdate}.csv")
-    returnGoerresUsernames("06-goerres_neu-q2.csv",
-                           f"07-goerresimport-q2{exportdate}.csv", "Q1")
+                       f"06-goerres_neu{goerresstufe}-{exportdate}.csv")
+    returnGoerresUsernames(f"06-goerres_neu{goerresstufe}-{exportdate}.csv",
+                           f"07-goerresimport-{goerresstufe}-{exportdate}.csv", "Q1")
+    
+    '''elternaccounts'''
+    createElternaccounts(forms_eltern, f"00-Export{exportdate}.csv", f"08-elternaccounts-control-{exportdate}.csv", f"08-elternaccounts-{exportdate}.csv")
+    returnElternUsernames(f"08-elternaccounts-{exportdate}.csv", f"09-elternaccounts-kc-import-{exportdate}.csv")
     '''pdfs erstellen'''
     # printUserCredentials(exportdate, "docs.luisen-gymnasium.de")
 
